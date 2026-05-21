@@ -92,6 +92,14 @@ on:
       - 'scripts/smoke-deprecated-actions.mjs'
       - 'scripts/smoke-attribution-opt-in.mjs'
       - '.github/supply-chain/allowed-deps.json'
+      # Init-bundle invariants smoke (#2095, ADR-128) — orphan dirs, SKILLS_MAP
+      # completeness, and plugin-init agent dedup are all guarded by Phase 5.
+      - 'v3/@claude-flow/cli/.claude/**'
+      - 'v3/@claude-flow/cli/src/init/**'
+      - 'plugins/*/agents/**'
+      - 'plugins/*/skills/**'
+      - 'plugins/*/commands/**'
+      - 'scripts/smoke-init-bundle-invariants.mjs'
   pull_request:
     branches: [main, develop]
     paths:
@@ -160,6 +168,13 @@ on:
       - 'scripts/smoke-deprecated-actions.mjs'
       - 'scripts/smoke-attribution-opt-in.mjs'
       - '.github/supply-chain/allowed-deps.json'
+      # Init-bundle invariants smoke (#2095, ADR-128)
+      - 'v3/@claude-flow/cli/.claude/**'
+      - 'v3/@claude-flow/cli/src/init/**'
+      - 'plugins/*/agents/**'
+      - 'plugins/*/skills/**'
+      - 'plugins/*/commands/**'
+      - 'scripts/smoke-init-bundle-invariants.mjs'
       # witness manifests / fix list — so witness-verify runs on PRs that
       # touch them (otherwise a stale per-OS manifest only fails post-merge).
       - 'verification/**'
@@ -1667,3 +1682,35 @@ jobs:
         run: pnpm publish:alpha
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  init-bundle-invariants-smoke:
+    # Regression guard for ruvnet/ruflo#2095 — ADR-128 Phase 5.
+    #
+    # Statically asserts three invariants of the @claude-flow/cli init bundle:
+    #
+    #   1. NO ORPHANED DIRECTORIES — every subdirectory under
+    #      v3/@claude-flow/cli/.claude/{commands,agents}/ is reachable from
+    #      COMMANDS_MAP or AGENTS_MAP in executor.ts.
+    #
+    #   2. SKILLS_MAP COMPLETENESS — every skill referenced in SKILLS_MAP
+    #      has a SKILL.md (or README.md) inside the package's .claude/skills/.
+    #
+    #   3. NO INIT-PLUGIN AGENT COLLISION — no .md in the init-template
+    #      agents/ shares a basename with any plugin agent. Enforces the
+    #      "plugin is canonical" dedup rule from ADR-128 Phase 2.
+    #
+    # Zero runtime deps; pure Node.js readFileSync + readdirSync.
+    name: init-bundle invariants smoke (#2095, ADR-128 Phase 5)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run init-bundle invariants smoke
+        run: node scripts/smoke-init-bundle-invariants.mjs
