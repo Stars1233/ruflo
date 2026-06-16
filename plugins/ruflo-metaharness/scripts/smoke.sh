@@ -191,6 +191,26 @@ grep -q "execCli(\[\s*'-y'\s*,\s*'metaharness@latest'" "$F" 2>/dev/null || \
 grep -q "cwd: opts" "$F" || miss="$miss no-cwd-passthrough"
 [[ -z "$miss" ]] && ok || bad "$miss"
 
+step "17w. ADR-152 Genome Similarity Search drafted (iter 34, Phase 3 critical-path)"
+F="$ROOT/../../v3/docs/adr/ADR-152-genome-similarity-search.md"
+miss=""
+[[ -f "$F" ]] || miss="$miss adr-missing"
+# Must reference its parent
+grep -q "ADR-151" "$F" 2>/dev/null || miss="$miss no-parent-link"
+# Must enumerate the 9 numerical features used in the cosine
+for field in harnessFit compileConfidence taskCoverage toolSafety memoryUsefulness risk_score test_confidence publish_readiness estCostPerRunUsd; do
+  grep -q "$field" "$F" 2>/dev/null || miss="$miss missing-feature-${field}"
+done
+# Composite weights documented
+grep -q "0.6.*cosine.*0.25.*categorical.*0.15.*jaccard" "$F" 2>/dev/null || miss="$miss no-weights"
+# Smallest-spike contract present
+grep -q "Smallest demonstrable spike" "$F" 2>/dev/null || miss="$miss no-spike-contract"
+# Cross-link from ADR-151 updated to DRAFTED
+PARENT151="$ROOT/../../v3/docs/adr/ADR-151-harness-intelligence-layer.md"
+grep -q "ADR-152-genome-similarity-search.md" "$PARENT151" 2>/dev/null || miss="$miss adr151-not-updated"
+grep -q "DRAFTED iter 34" "$PARENT151" 2>/dev/null || miss="$miss adr151-no-drafted-marker"
+[[ -z "$miss" ]] && ok || bad "$miss"
+
 step "17v. ADR-151 Phase 3 scope shell drafted (iter 33)"
 F="$ROOT/../../v3/docs/adr/ADR-151-harness-intelligence-layer.md"
 miss=""

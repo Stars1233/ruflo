@@ -31,7 +31,7 @@ Adopt the **Harness Intelligence Layer** as a Phase-3 capability cluster, scoped
 
 ### Phase-3 sub-capabilities (in implementation-dependency order)
 
-#### 3.1 — Genome Similarity Search (ADR-152, to be drafted)
+#### 3.1 — Genome Similarity Search ([ADR-152](ADR-152-genome-similarity-search.md), DRAFTED iter 34)
 
 **What:** Given two harnesses (or one harness + a candidate repo), compute a similarity score across the 7 genome sections and the 5 scorecard dimensions. Return a normalized 0..1 number plus a per-dimension breakdown.
 
