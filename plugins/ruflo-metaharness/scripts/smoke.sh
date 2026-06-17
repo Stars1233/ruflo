@@ -191,6 +191,28 @@ grep -q "execCli(\[\s*'-y'\s*,\s*'metaharness@latest'" "$F" 2>/dev/null || \
 grep -q "cwd: opts" "$F" || miss="$miss no-cwd-passthrough"
 [[ -z "$miss" ]] && ok || bad "$miss"
 
+step "17z47. all 3 compat tripwires present + executable (iter 84)"
+miss=""
+# Catches accidental deletion of any tripwire — would otherwise only
+# surface in CI after the metaharness-real-data job runs (~5min later).
+SCRIPTS_DIR="$ROOT/../../scripts"
+for t in check-metaharness-compat.mjs check-mcp-scan-format.mjs check-fingerprint-schema.mjs; do
+  F="$SCRIPTS_DIR/$t"
+  [[ -f "$F" ]] || miss="$miss missing-$t"
+  [[ -x "$F" ]] || miss="$miss not-executable-$t"
+  node --check "$F" 2>/dev/null || miss="$miss syntax-error-$t"
+  # Each tripwire must support --format json (CI-consumable contract)
+  grep -q -- "--format json" "$F" 2>/dev/null || miss="$miss no-format-json-$t"
+  # Each tripwire must have an exit-2 graceful-error path
+  grep -q "process.exit(2)" "$F" 2>/dev/null || miss="$miss no-exit-2-$t"
+done
+# CI workflow runs all 3
+W="$ROOT/../../.github/workflows/metaharness-ci.yml"
+grep -q "check-metaharness-compat.mjs\|router-compat" "$W" 2>/dev/null || miss="$miss compat-not-in-ci"
+grep -q "check-mcp-scan-format.mjs" "$W" 2>/dev/null || miss="$miss mcp-scan-not-in-ci"
+grep -q "check-fingerprint-schema.mjs" "$W" 2>/dev/null || miss="$miss fingerprint-not-in-ci"
+[[ -z "$miss" ]] && ok || bad "$miss"
+
 step "17z46. ADR-150 notes reflect iters 60-82 (iter 83)"
 miss=""
 ADR="$ROOT/../../v3/docs/adr/ADR-150-metaharness-integration-surfaces.md"
@@ -562,8 +584,11 @@ grep -q "iter 36-53 surfaces" "$DOC" 2>/dev/null || miss="$miss no-iter53-commen
 step "17z23. ADR-150 implementation notes reflect iters 13-59 (iter 60)"
 miss=""
 ADR="$ROOT/../../v3/docs/adr/ADR-150-metaharness-integration-surfaces.md"
-grep -q "Phase 3 §3.1 ✅ iters 33–59" "$ADR" 2>/dev/null || miss="$miss no-phase3-status"
-grep -q "sixty iterations of /loop" "$ADR" 2>/dev/null || miss="$miss no-60-iter-marker"
+# iter 83 bumped these markers from "33–59" / "sixty" → "33–82" / "eighty-two"
+# Smoke accepts any iters-NN range and any N-iteration string so future ADR
+# refreshes don't break iter-60's coverage assertion.
+grep -qE "Phase 3 §3.1 ✅ iters 33–[0-9]+" "$ADR" 2>/dev/null || miss="$miss no-phase3-status"
+grep -qE "[a-z]+(-[a-z]+)? iterations of /loop" "$ADR" 2>/dev/null || miss="$miss no-iter-count-marker"
 grep -q "Phase 2 continued (iters 13–32)" "$ADR" 2>/dev/null || miss="$miss no-phase2-continued"
 grep -q "Phase 3 §3.1 — Genome Similarity Search (iters 33–59)" "$ADR" 2>/dev/null || miss="$miss no-phase3-section"
 grep -q "Real-data bug-discovery arc (iters 47-51)" "$ADR" 2>/dev/null || miss="$miss no-bug-arc"
