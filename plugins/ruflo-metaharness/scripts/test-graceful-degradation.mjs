@@ -111,6 +111,14 @@ function main() {
     { name: 'mcp-scan',     args: ['--format', 'json'] },
     { name: 'threat-model', args: ['--format', 'json'] },
     { name: 'oia-audit',    args: ['--dry-run', '--format', 'json'] },
+    // ADR-153 — darwin scripts (separate optional dep @metaharness/darwin).
+    // evolve.mjs without --confirm short-circuits to a dry-run plan BEFORE
+    // any subprocess call, so it's not exercising the degraded path. Pass
+    // --confirm with --sandbox mock + minimal shape so we hit the subprocess
+    // path quickly and verify the {degraded: true} emit on registry-unreachable.
+    { name: 'evolve',       args: ['--repo', '.', '--confirm', '--sandbox', 'mock', '--generations', '1', '--children', '1', '--concurrency', '1', '--timeout-ms', '60000'] },
+    { name: 'security-bench', args: ['--population', '1', '--cycles', '1', '--timeout-ms', '60000'] },
+    { name: 'bench',          args: ['--op', 'verify', '--suite', '/dev/null'] },
   ];
 
   for (const s of skills) {

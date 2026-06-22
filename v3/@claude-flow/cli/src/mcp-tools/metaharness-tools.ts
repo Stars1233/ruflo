@@ -11,6 +11,13 @@
  *   - metaharness_threat_model   enterprise-grade threat model
  *   - metaharness_oia_audit      composite audit (score + threat + mcp) → memory
  *
+ * ADR-153 Darwin Mode integration adds three additional tools that target
+ * the separate `@metaharness/darwin` npm package (not the umbrella):
+ *
+ *   - metaharness_evolve         mutate harness policy surfaces, sandbox-score, promote
+ *   - metaharness_security_bench upstream's "Darwin Shield" (their own ADR-155)
+ *   - metaharness_bench          create/verify bench suites used by evolve --bench
+ *
  * Every tool resolves the corresponding plugin script
  * (`plugins/ruflo-metaharness/scripts/<X>.mjs`) via the same locator
  * the commands/metaharness.ts dispatcher uses, then spawns it with
@@ -345,6 +352,115 @@ export const metaharnessTools: MCPTool[] = [
       if (input.alertOnWorsening === true) args.push('--alert-on-worsening');
       if (input.alertOnDistanceBelow !== undefined) args.push('--alert-on-distance-below', String(input.alertOnDistanceBelow));
       const r = await runScript('audit-trend.mjs', args);
+      return { success: r.success, data: r.json, degraded: r.degraded, exitCode: r.exitCode };
+    },
+  },
+  // ───────────────────────────────────────────────────────────────────────
+  // ADR-153 — @metaharness/darwin integration (3 tools).
+  // Backed by the separate `@metaharness/darwin@~0.3.1` npm package, NOT
+  // the umbrella `metaharness`. Plugin scripts shell out via _darwin.mjs.
+  // Same {success, data, degraded, exitCode} contract.
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    name: 'metaharness_evolve',
+    description: 'ADR-153 — Darwin Mode: mutate one of seven harness policy surfaces (planner/contextBuilder/reviewer/retryPolicy/toolPolicy/memoryPolicy/scorePolicy), sandbox-score each variant, promote only measured wins. The WRITE layer that closes the loop ADR-150 opens (score+genome describe; evolve changes). Use when readiness scores are flat and you want to discover WHICH surface mutation moves them, without retraining the foundation model. Bypassing this tool and hand-tuning is wrong because (a) single-degree-of-freedom mutations keep causal attribution clean, (b) the upstream safety layer catches secret/shell-out/network/dynamic-eval patterns before any variant runs (exit 99 = safety-disqualified, propagated verbatim). REQUIRES --confirm; defaults to dry-run plan output. Long-running: timeout scales with generations×children×sandbox-cost. ' + MCP_SUCCESS_SEMANTIC,
+    category: 'metaharness',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repo: { type: 'string', description: 'Repo path to evolve (default: cwd)', default: '.' },
+        generations: { type: 'number', description: '1..50 (ruflo cap)', default: 3 },
+        children: { type: 'number', description: '1..20 (ruflo cap) — variants per generation', default: 3 },
+        concurrency: { type: 'number', description: '1..8 (ruflo cap)', default: 2 },
+        seed: { type: 'number', description: 'PRNG seed for reproducibility' },
+        sandbox: { type: 'string', enum: ['real', 'mock', 'agent'], description: 'real = run npm test; mock = scoring stub; agent = LLM judge', default: 'real' },
+        selection: { type: 'string', enum: ['quality-diversity', 'behavioral-diversity', 'niche-steering', 'clade', 'pareto'], description: 'Next-generation sampling strategy from the archive tree' },
+        crossover: { type: 'boolean', description: 'Enable crossover (2-parent) mutations alongside the default 1-parent path', default: false },
+        epistasis: { type: 'boolean', description: 'Detect epistatic surface interactions before mutating', default: false },
+        curriculum: { type: 'boolean', description: 'Schedule increasing-difficulty bench tasks across generations', default: false },
+        riskBudget: { type: 'number', description: 'Max number of safety-near-miss variants allowed before halting' },
+        fdr: { type: 'number', description: 'Benjamini-Hochberg FDR threshold for accepting variant fitness as significant' },
+        tie: { type: 'string', enum: ['faster'], description: 'Tiebreaker when champions are within noise — "faster" prefers lower sandbox cost' },
+        bench: { type: 'string', description: 'Path to a bench suite JSON (use metaharness_bench --op create to scaffold)' },
+        mutator: { type: 'string', enum: ['deterministic', 'ruvllm'], description: 'deterministic = template-based; ruvllm = local LLM-driven', default: 'deterministic' },
+        ruvllmUrl: { type: 'string', description: 'RuVLLM endpoint URL (only used when mutator=ruvllm)' },
+        ruvllmModel: { type: 'string', description: 'RuVLLM model id (only used when mutator=ruvllm)' },
+        confirm: { type: 'boolean', description: 'REQUIRED to actually evolve; without it, returns a dry-run plan', default: false },
+        alertOnNoImprovement: { type: 'boolean', description: 'Exit 1 when champion ≤ parent', default: false },
+        timeoutMs: { type: 'number', description: 'Override the computed timeout (default = generations×children×per-variant)' },
+      },
+    },
+    handler: async (input) => {
+      const args: string[] = [];
+      if (input.repo) args.push('--repo', String(input.repo));
+      if (input.generations !== undefined) args.push('--generations', String(input.generations));
+      if (input.children !== undefined) args.push('--children', String(input.children));
+      if (input.concurrency !== undefined) args.push('--concurrency', String(input.concurrency));
+      if (input.seed !== undefined) args.push('--seed', String(input.seed));
+      if (input.sandbox) args.push('--sandbox', String(input.sandbox));
+      if (input.selection) args.push('--selection', String(input.selection));
+      if (input.crossover === true) args.push('--crossover');
+      if (input.epistasis === true) args.push('--epistasis');
+      if (input.curriculum === true) args.push('--curriculum');
+      if (input.riskBudget !== undefined) args.push('--risk-budget', String(input.riskBudget));
+      if (input.fdr !== undefined) args.push('--fdr', String(input.fdr));
+      if (input.tie) args.push('--tie', String(input.tie));
+      if (input.bench) args.push('--bench', String(input.bench));
+      if (input.mutator) args.push('--mutator', String(input.mutator));
+      if (input.ruvllmUrl) args.push('--ruvllm-url', String(input.ruvllmUrl));
+      if (input.ruvllmModel) args.push('--ruvllm-model', String(input.ruvllmModel));
+      if (input.confirm === true) args.push('--confirm');
+      if (input.alertOnNoImprovement === true) args.push('--alert-on-no-improvement');
+      if (input.timeoutMs !== undefined) args.push('--timeout-ms', String(input.timeoutMs));
+      const r = await runScript('evolve.mjs', args);
+      return { success: r.success, data: r.json, degraded: r.degraded, exitCode: r.exitCode };
+    },
+  },
+  {
+    name: 'metaharness_security_bench',
+    description: 'ADR-153 — upstream Darwin Shield (their own ADR-155): evolves a champion security-detection harness against a 10-vuln/9-decoy ground-truth corpus and grades on TPR/FPR/patch-pass/repro/unsafe vs four baselines (B0 static, B1 LLM-single-pass, B2 fixed-agent, B3 Darwin-champion). Closest reference implementation for ruflo ADR-155 nightly self-learning security harness (#2417). Use when you need an empirical floor for Loop A reward-signal soundness; running this periodically gives baseline diversity and week-over-week champion-fitness drift. Bypassing this and just running the static MCP scan is wrong because static-only baseline (B0) reaches TPR=0.3/FPR=1 — proving static-alone has a measured detection ceiling. Parses overall PASS/FAIL + per-gate verdicts + baselines table from markdown. ' + MCP_SUCCESS_SEMANTIC,
+    category: 'metaharness',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        population: { type: 'number', description: '1..20 (ruflo cap) — candidate detectors per cycle', default: 2 },
+        cycles: { type: 'number', description: '1..100 (ruflo cap) — evolution cycles', default: 1 },
+        seed: { type: 'number', description: 'PRNG seed for reproducibility' },
+        alertOnFail: { type: 'boolean', description: 'Exit 1 when overall verdict is FAIL', default: false },
+        timeoutMs: { type: 'number', description: 'Override the computed timeout (default = 3s × 19 evals × population × cycles + 30s)' },
+      },
+    },
+    handler: async (input) => {
+      const args: string[] = [];
+      if (input.population !== undefined) args.push('--population', String(input.population));
+      if (input.cycles !== undefined) args.push('--cycles', String(input.cycles));
+      if (input.seed !== undefined) args.push('--seed', String(input.seed));
+      if (input.alertOnFail === true) args.push('--alert-on-fail');
+      if (input.timeoutMs !== undefined) args.push('--timeout-ms', String(input.timeoutMs));
+      const r = await runScript('security-bench.mjs', args);
+      return { success: r.success, data: r.json, degraded: r.degraded, exitCode: r.exitCode };
+    },
+  },
+  {
+    name: 'metaharness_bench',
+    description: 'ADR-153 supporting verb — create or verify bench suites used by metaharness_evolve --bench. Bench suites are JSON files of {input, expectedOutput, weight} tasks; scoring against a fixed corpus decouples evolution from flaky/slow/undersized `npm test`. Use --op create to scaffold from a repo, --op verify (cheap, ~5s) to gate suite changes in CI. Skipping bench suites is wrong when iterating on the same harness across commits because per-run noise drowns out champion-fitness deltas; bench gives you a stable baseline. ' + MCP_SUCCESS_SEMANTIC,
+    category: 'metaharness',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        op: { type: 'string', enum: ['create', 'verify'], description: 'create scaffolds suite.json from a repo; verify validates an existing suite' },
+        repo: { type: 'string', description: 'Repo path (required for --op create)' },
+        suite: { type: 'string', description: 'Suite JSON path (required for --op verify)' },
+        out: { type: 'string', description: 'Override default output path for --op create (default: <repo>/.metaharness/bench/suite.json)' },
+      },
+      required: ['op'],
+    },
+    handler: async (input) => {
+      const args: string[] = ['--op', String(input.op)];
+      if (input.repo) args.push('--repo', String(input.repo));
+      if (input.suite) args.push('--suite', String(input.suite));
+      if (input.out) args.push('--out', String(input.out));
+      const r = await runScript('bench.mjs', args);
       return { success: r.success, data: r.json, degraded: r.degraded, exitCode: r.exitCode };
     },
   },

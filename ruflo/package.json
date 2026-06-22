@@ -43,9 +43,10 @@
     "@claude-flow/cli": "^3.10.3"
   },
   "optionalDependencies": {
-    "metaharness": "~0.1.11",
+    "metaharness": "~0.2.6",
     "@metaharness/router": "~0.3.2",
-    "@metaharness/kernel": "~0.1.0"
+    "@metaharness/kernel": "~0.1.0",
+    "@metaharness/darwin": "~0.3.1"
   },
   "overrides": {
     "ruvector": "^0.2.27",
