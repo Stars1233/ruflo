@@ -2247,6 +2247,16 @@ jobs:
         # Same pattern as the #2120 memory-stats smoke job.
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
+      - name: Build better-sqlite3 native binding for graph-edge-writer
+        # --ignore-scripts above skipped better-sqlite3's prebuild-install,
+        # leaving node_modules/better-sqlite3 on disk without the .node
+        # binary. The graph-edge-writer does `await import('better-sqlite3')`
+        # which Node resolves from the importing module's nearest
+        # node_modules — that ends up being the *root* tree (closer than
+        # v3/.pnpm), so the broken root copy wins and _openDb returns null
+        # → insertGraphEdge returns false → TEST 2/3/5 all fail. Rebuild it.
+        run: npm rebuild better-sqlite3
+
       - name: Install v3 workspace deps and build
         run: |
           cd v3
