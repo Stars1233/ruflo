@@ -403,8 +403,8 @@ importers:
   '@claude-flow/memory':
     dependencies:
       agentdb:
-        specifier: ^3.0.0-alpha.16
-        version: 3.0.0-alpha.16(@types/node@20.19.27)(zod@3.25.76)
+        specifier: ^3.0.0-alpha.17
+        version: 3.0.0-alpha.17(@types/node@20.19.27)(zod@3.25.76)
       sql.js:
         specifier: ^1.10.3
         version: 1.13.0
@@ -7033,52 +7033,6 @@ packages:
       - supports-color
     dev: false
 
-  /agentdb@3.0.0-alpha.16(@types/node@20.19.27)(zod@3.25.76):
-    resolution: {integrity: sha512-hx5KildnxQ/mZaOaOKGHDe7OlDJmHoRV7sy5b4PpfjtHAE9dU0vzM7tpemZKPhnaRA89jxpKTutbnhux/JzgLg==}
-    engines: {node: '>=18.0.0'}
-    hasBin: true
-    requiresBuild: true
-    dependencies:
-      '@modelcontextprotocol/sdk': 1.27.1(zod@3.25.76)
-      '@opentelemetry/api': 1.9.1
-      '@ruvector/graph-transformer': 2.0.4
-      ajv: 8.18.0
-      jsonwebtoken: 9.0.3
-      sql.js: 1.14.1
-    optionalDependencies:
-      '@opentelemetry/resources': 1.30.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node': 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.40.0
-      '@ruvector/attention': 0.1.32
-      '@ruvector/gnn': 0.1.25
-      '@ruvector/graph-node': 2.0.3
-      '@ruvector/router': 0.1.30
-      '@ruvector/ruvllm': 2.5.6
-      '@ruvector/rvf': 0.1.9
-      '@ruvector/rvf-node': 0.1.8
-      '@ruvector/rvf-solver': 0.1.8
-      '@ruvector/rvf-wasm': 0.1.6
-      '@ruvector/sona': 0.1.7
-      '@xenova/transformers': 2.17.2
-      argon2: 0.44.0
-      better-sqlite3: 11.10.0
-      chalk: 5.6.2
-      commander: 12.1.0
-      hnswlib-node: 3.0.0
-      inquirer: 9.3.8(@types/node@20.19.27)
-      ruvector: 0.1.100(zod@3.25.76)
-      ruvector-attention-wasm: 0.1.32
-      ruvector-graph-transformer-wasm: 2.0.4
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - '@types/node'
-      - bare-abort-controller
-      - bare-buffer
-      - react-native-b4a
-      - supports-color
-      - zod
-    dev: false
-
   /agentdb@3.0.0-alpha.17(@types/node@20.19.27)(zod@3.25.76):
     resolution: {integrity: sha512-LK8drZFQteNkff+ji52vCmIXyE3A3ipzabx+ubBcX0CRgF96GU8m36sWyOfqL7pWRfnYDgkEEEgZmagiNCaz/A==}
     engines: {node: '>=18.0.0'}
@@ -7123,7 +7077,6 @@ packages:
       - react-native-b4a
       - supports-color
       - zod
-    optional: true
 
   /agentic-flow@1.10.2(@modelcontextprotocol/sdk@1.27.1):
     resolution: {integrity: sha512-h3d1KNUFkmdFdtjwn792/MPqYrEf7OId2LIIXlJDGM4epx0Vcm5FQ+ROrjxWDE04xgG3AHQ5dNynxPTDdkC7RA==}
