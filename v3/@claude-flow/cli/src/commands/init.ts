@@ -156,10 +156,13 @@ async function maybeAutoDetectCodex(
 }
 
 // Cross-agent skill registration via skills.sh. Runs `npx --yes skills add
-// ruvnet/ruflo` so ruflo's 134 skills reach whatever agent the project uses
-// (Claude Code, Cursor, Copilot, Gemini, Cline, …). Best-effort — never fails
-// init. Opt-out: --no-skills-sh flag OR RUFLO_NO_SKILLS_SH=1. Skipped under
-// --skip-claude and scripted `--format json` output.
+// ruvnet/ruflo --skill ruflo --yes` so the *single* canonical ruflo skill
+// (SKILL.md at the ruvnet/ruflo repo root — describes the platform + entry
+// points) reaches whatever agent the project uses (Claude Code, Cursor,
+// Copilot, Gemini, Cline, …). Users who want ALL 267 plugin-specific skills
+// can run `npx skills add ruvnet/ruflo --all` themselves. Best-effort — never
+// fails init. Opt-out: --no-skills-sh flag OR RUFLO_NO_SKILLS_SH=1. Skipped
+// under --skip-claude and scripted `--format json` output.
 //
 // windowsHide silences the console flash the npx child would otherwise produce
 // (anthropics/claude-code#14828 spawn hazard applies to hook-fired spawns,
@@ -174,22 +177,23 @@ async function maybeInstallSkillsSh(ctx: CommandContext): Promise<void> {
     if (!commandExists('npx')) return;
 
     output.writeln();
-    output.printInfo('Registering ruflo with skills.sh (cross-agent skill catalog)…');
+    output.printInfo('Registering the core `ruflo` skill with skills.sh (cross-agent catalog)…');
 
     const { spawnSync } = await import('child_process');
     const result = spawnSync(
       npxCmd,
-      ['--yes', 'skills', 'add', 'ruvnet/ruflo'],
+      ['--yes', 'skills', 'add', 'ruvnet/ruflo', '--skill', 'ruflo', '--yes'],
       { cwd: ctx.cwd, stdio: 'pipe', timeout: 60_000, windowsHide: true, encoding: 'utf-8' },
     );
 
     if (result.status === 0) {
-      output.writeln(output.success('  ✓ ruflo skills registered via skills.sh — available to any agent in this project'));
+      output.writeln(output.success('  ✓ ruflo registered via skills.sh — the platform skill is available to any agent in this project'));
+      output.writeln(output.dim('    Want all 267 plugin skills? npx skills add ruvnet/ruflo --all'));
       output.writeln(output.dim('    Opt out next time: --no-skills-sh or RUFLO_NO_SKILLS_SH=1'));
     } else {
       // Common non-fatal reasons: offline, npx cache miss, skills CLI version
       // mismatch, unknown package. Log a soft note; users can retry manually.
-      output.writeln(output.dim('  skills.sh registration skipped (network or npx cache) — retry with: npx --yes skills add ruvnet/ruflo'));
+      output.writeln(output.dim('  skills.sh registration skipped (network or npx cache) — retry with: npx skills add ruvnet/ruflo --skill ruflo --yes'));
     }
   } catch {
     // Skills.sh registration is a bonus, never a requirement — swallow everything.
