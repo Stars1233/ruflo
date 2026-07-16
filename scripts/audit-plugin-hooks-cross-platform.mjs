@@ -94,6 +94,16 @@ let posixWindowsPathMissing = false;
 
 for (const file of walkForHooksJson(REPO_ROOT)) {
   const text = readFileSync(file, 'utf8');
+  if (text.charCodeAt(0) === 0xFEFF) {
+    violations.push({
+      file: relative(REPO_ROOT, file),
+      line: 1,
+      label: 'UTF-8 BOM forbidden (Codex reports line 1 column 1)',
+      cmd: 'hooks.json starts with bytes EF BB BF',
+      hint: 'Save hooks.json as UTF-8 without BOM before publishing the plugin.',
+    });
+    continue;
+  }
   let json;
   try { json = JSON.parse(text); } catch (err) {
     violations.push({ file: relative(REPO_ROOT, file), line: 0, label: 'invalid JSON', cmd: err.message, hint: '' });
