@@ -409,7 +409,7 @@ export const proxyCommand: Command = {
     trainingShareEnableSub, trainingShareDisableSub, trainingShareStatusSub,
   ],
   examples: [
-    { command: 'ruflo proxy install --release 0.1.0 --yes', description: 'Install the meta-proxy binary' },
+    { command: 'ruflo proxy install --yes', description: 'Install the signed Meta-Proxy v0.4.0 binary' },
     { command: 'ruflo proxy start', description: 'Start meta-proxy in the foreground' },
     { command: 'ruflo proxy status', description: 'Show install + process status' },
     { command: 'ruflo proxy config --cloud --yes', description: 'Enable cloud routing (ADR-304)' },

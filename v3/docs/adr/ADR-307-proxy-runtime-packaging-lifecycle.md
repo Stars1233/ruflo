@@ -151,3 +151,13 @@ The three client-side gaps found during the implementation review are closed:
 The bridge is implemented by meta-proxy v0.2.0 and ruflo's resident supervisor: only the short-lived
 access token crosses the process boundary, while ruflo retains the rotating refresh token in the OS
 keychain. Production installation is implemented through the signed public distribution channel.
+
+### v0.4.0 pinned install default (2026-07-17)
+
+`ruflo proxy install --yes` now selects the reviewed Meta-Proxy v0.4.0 release
+without requiring a user to discover and type a version. This is a pinned,
+reproducible default, not an unauthenticated "latest" lookup: the installer
+continues to verify the public distribution's Ed25519-signed `SHA256SUMS` and
+the selected platform archive before extraction. An operator keeps control of
+later changes through explicit `ruflo proxy update --release <x.y.z>` or an
+explicit `install --release <x.y.z>` override.

@@ -1,16 +1,7 @@
 /**
- * `proxy install`'s Command.action logic — isolated via RUFLO_STATE_DIR,
- * install itself mocked out (real downloads belong in manual/E2E testing,
- * already verified against the real meta-proxy v0.1.0 release).
- *
- * Regression coverage for a real bug found during E2E testing: the
- * proxy-install consent grant must never happen before required flags are
- * validated. The original implementation checked consent (and, on --yes,
- * recorded it) BEFORE checking for --release — so `proxy install --yes`
- * with no --release recorded consent even though the command then failed,
- * which meant a LATER, parameter-complete `proxy install --release x.y.z`
- * silently skipped the disclosure the user should have seen once with real
- * information. Fixed by validating --release first.
+ * `proxy install` defaults to the reviewed, signed Meta-Proxy v0.4.0
+ * release. `--release` remains an explicit override; the default must still
+ * pass through the normal consent gate and signature-verifying installer.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -46,35 +37,36 @@ async function getInstallSub() {
   return sub;
 }
 
-describe('proxy install — parameter validation happens before any consent side-effect', () => {
-  it('--yes with no --release fails WITHOUT recording proxy-install consent', async () => {
+describe('proxy install - pinned release default', () => {
+  it('without --release shows disclosure without recording consent', async () => {
     const installSub = await getInstallSub();
-    const result = await installSub.action!(ctxWithFlags({ yes: true }));
-    expect(result?.success).toBe(false);
+    const result = await installSub.action!(ctxWithFlags({}));
 
+    expect(result?.success).toBe(true);
+    expect((result?.data as { confirmed?: boolean } | undefined)?.confirmed).toBe(false);
     const { hasConsent } = await import('../src/funnel/index.js');
     expect(hasConsent('proxy-install')).toBe(false);
   });
 
-  it('a later, parameter-complete call still shows the disclosure (consent was never silently granted)', async () => {
-    const installSub = await getInstallSub();
-
-    // First call: --yes but no --release — must fail, must not grant consent (asserted above).
-    await installSub.action!(ctxWithFlags({ yes: true }));
-
-    // Second call: --release present, but NO --yes this time — must show the
-    // disclosure and refuse (not silently proceed as if already consented).
-    const second = await installSub.action!(ctxWithFlags({ release: '0.1.0' }));
-    expect(second?.success).toBe(true);
-    expect((second?.data as { confirmed?: boolean } | undefined)?.confirmed).toBe(false);
-  });
-
-  it('missing --release is rejected even when consent already exists from a prior install', async () => {
-    const { recordConsent } = await import('../src/funnel/consent.js');
-    recordConsent('proxy-install', true, 'test-seed');
+  it('uses v0.4.0 when confirmed without a release override', async () => {
+    const installProxy = vi.fn().mockResolvedValue({ version: '0.4.0', binaryPath: '/tmp/meta-proxy', sha256: 'abc' });
+    vi.doMock('../src/proxy/install.js', () => ({ installProxy, uninstallProxy: vi.fn() }));
 
     const installSub = await getInstallSub();
     const result = await installSub.action!(ctxWithFlags({ yes: true }));
-    expect(result?.success).toBe(false);
+
+    expect(result?.success).toBe(true);
+    expect(installProxy).toHaveBeenCalledWith(expect.objectContaining({ version: '0.4.0' }));
+  });
+
+  it('honors an explicit release override', async () => {
+    const installProxy = vi.fn().mockResolvedValue({ version: '9.9.9', binaryPath: '/tmp/meta-proxy', sha256: 'abc' });
+    vi.doMock('../src/proxy/install.js', () => ({ installProxy, uninstallProxy: vi.fn() }));
+
+    const installSub = await getInstallSub();
+    const result = await installSub.action!(ctxWithFlags({ release: '9.9.9', yes: true }));
+
+    expect(result?.success).toBe(true);
+    expect(installProxy).toHaveBeenCalledWith(expect.objectContaining({ version: '9.9.9' }));
   });
 });

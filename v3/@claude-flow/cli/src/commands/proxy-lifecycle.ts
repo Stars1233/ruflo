@@ -23,6 +23,9 @@ import {
 import { proxyTokenPath } from '../proxy/paths.js';
 import { removeInjectedToken, startTokenRefreshPump } from '../proxy/token-bridge.js';
 
+/** Pinned and reviewed; later upgrades remain explicit commands. */
+export const DEFAULT_PROXY_RELEASE = '0.4.0';
+
 const INSTALL_DISCLOSURE = [
   'Installing the Meta LLM Proxy (ADR-304/307).',
   '',
@@ -45,15 +48,13 @@ const installSub: Command = {
     // BEFORE subcommand dispatch, regardless of which command defines it. A
     // subcommand-local --version is silently swallowed by the CLI's own
     // `ruflo --version` handling — confirmed the hard way in E2E testing.
-    { name: 'release', description: 'Release version to install', type: 'string' },
+    { name: 'release', description: `Release version to install (default: ${DEFAULT_PROXY_RELEASE})`, type: 'string' },
     { name: 'yes', description: 'Skip the confirmation prompt', type: 'boolean', default: false },
   ],
   action: async (ctx): Promise<CommandResult> => {
-    // Validate required parameters BEFORE any consent side-effect — granting
-    // proxy-install consent on a call that was going to fail anyway (e.g.
-    // --yes with no --release) would permanently skip the disclosure on the
-    // next, parameter-complete attempt. Confirmed as a real bug in E2E testing.
-    const version = typeof ctx.flags.release === 'string' ? ctx.flags.release : undefined;
+    // Resolve the reviewed default before the consent gate. An explicit empty
+    // override still fails below without recording a consent receipt.
+    const version = typeof ctx.flags.release === 'string' ? ctx.flags.release : DEFAULT_PROXY_RELEASE;
     if (!version) {
       output.printError(
         'ruflo proxy install requires --release <x.y.z> — there is no version-discovery ' +
@@ -68,7 +69,7 @@ const installSub: Command = {
       output.writeln('');
       const confirmed = Boolean(ctx.flags.yes);
       if (!confirmed) {
-        output.writeln(`Re-run with --yes to confirm: ruflo proxy install --release ${version} --yes`);
+        output.writeln(`Re-run with --yes to confirm: ruflo proxy install --yes (installs ${version})`);
         return { success: true, data: { confirmed: false } };
       }
       recordConsent('proxy-install', true, 'proxy-install');
@@ -185,7 +186,7 @@ const statusSub: Command = {
     output.writeln(`Installed: ${status.installed ? 'yes' : 'no'}`);
     output.writeln(`Running: ${status.running ? `yes (pid ${status.pid})` : 'no'}`);
     if (status.stalePidFile) output.writeln('  (a stale PID file was found and will be cleared on next start)');
-    if (!status.installed) output.writeln('Run: ruflo proxy install --release <x.y.z>');
+    if (!status.installed) output.writeln(`Run: ruflo proxy install --yes (installs ${DEFAULT_PROXY_RELEASE})`);
     else if (!status.running) output.writeln('Run: ruflo proxy start');
     return { success: true, data: status };
   },
