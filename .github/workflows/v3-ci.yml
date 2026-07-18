@@ -10,11 +10,15 @@ on:
       # path filter keeps CI in sync with their changes.
       - 'plugins/ruflo-core/scripts/witness/**'
       - 'plugins/ruflo-core/scripts/test-hooks.mjs'
+      - 'plugins/ruflo-cost-tracker/scripts/test-hooks.mjs'
       - 'verification/**'
       # scripts/*.mjs audits (tool-descriptions, plugin-packages, hook-commands)
       - 'scripts/**'
-      # hook-command audit (#1921) — every plugin hooks.json + the ruflo-hook shims
+      # hook-command audit (#1921, #2721) — every plugin hooks.json + the
+      # cross-platform ruflo-hook.cjs shims (ruflo-hook.sh is legacy/unused
+      # as of #2721 but kept for reference; no longer referenced by hooks.json)
       - '**/hooks/hooks.json'
+      - '**/scripts/ruflo-hook.cjs'
       - '**/scripts/ruflo-hook.sh'
       # pre-bash hook safety (#2017) — both handler copies trigger the smoke
       - '**/.claude/helpers/hook-handler.cjs'
@@ -153,8 +157,10 @@ on:
       - 'v3/**'
       - 'plugins/ruflo-core/scripts/witness/**'
       - 'plugins/ruflo-core/scripts/test-hooks.mjs'
+      - 'plugins/ruflo-cost-tracker/scripts/test-hooks.mjs'
       - 'scripts/**'
       - '**/hooks/hooks.json'
+      - '**/scripts/ruflo-hook.cjs'
       - '**/scripts/ruflo-hook.sh'
       - '**/.claude/helpers/hook-handler.cjs'
       # ruflo-browser rvf create flag (#2015)
@@ -571,12 +577,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Cross-platform: ubuntu + macos. Windows excluded because the
-        # plugin's hooks.json uses `/bin/bash -c '...'` and the synthetic
-        # JSON-on-stdin pipeline assumes POSIX shell. On Windows users
-        # run Claude Code via WSL or git-bash, which the test would also
-        # need to simulate; out of scope for this regression guard.
-        os: [ubuntu-latest, macos-latest]
+        # #2721 — windows-latest included: hooks.json no longer wraps
+        # commands in `/bin/bash -c '...'`, it invokes `node -e "..."`
+        # directly (see plugins/ruflo-core/hooks/hooks.json), which needs
+        # no POSIX shell at all. test-hooks.mjs drives the exact command
+        # string from hooks.json via `shell: true`, so this is a genuine
+        # regression guard against the #2721 shape recurring, not just a
+        # POSIX-only smoke.
+        os: [ubuntu-latest, macos-latest, windows-latest]
         # Node 22 is the project's documented baseline (engines.node: '>=20')
         # but Node 20 had environment-specific issues with multi-line stdin
         # round-tripping that didn't reproduce on Node 22 or locally — same
@@ -602,6 +610,7 @@ jobs:
 
       - name: Install + build cli (scoped, tolerates unrelated workspace failures)
         working-directory: v3
+        shell: bash
         run: |
           pnpm install --frozen-lockfile
           # --no-bail keeps building past unrelated package failures
@@ -614,9 +623,15 @@ jobs:
             || (echo "cli build did not produce hooks.js"; exit 1)
 
       - name: Run plugin hooks smoke against local CLI build
+        shell: bash
         run: |
           node plugins/ruflo-core/scripts/test-hooks.mjs \
             "node $GITHUB_WORKSPACE/v3/@claude-flow/cli/bin/cli.js"
+
+      - name: Run cost-tracker Stop hook smoke against local CLI build
+        shell: bash
+        run: |
+          node plugins/ruflo-cost-tracker/scripts/test-hooks.mjs
 
   browser-rvf-create-flags-smoke:
     # Regression guard for ruvnet/ruflo#2015 — the ruflo-browser
