@@ -1,6 +1,6 @@
 {
   "name": "@claude-flow/cli",
-  "version": "3.32.8",
+  "version": "3.32.9",
   "type": "module",
   "description": "Ruflo CLI - Enterprise AI agent orchestration with 60+ specialized agents, swarm coordination, MCP server, self-learning hooks, and vector memory for Claude Code",
   "main": "dist/src/index.js",
@@ -132,6 +132,6 @@
     "@opentelemetry/sdk-trace-base": ">=2.8.0",
     "@opentelemetry/sdk-node": ">=0.220.0",
     "agentdb": "$agentdb",
-    "better-sqlite3": "12.9.0"
+    "better-sqlite3": "^12.9.0"
   }
 }
